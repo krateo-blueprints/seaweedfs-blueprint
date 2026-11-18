@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# This repository's release preflight (krateo-blueprints/charts PUBLISHING.md rule 12). It runs from
+# krateo-blueprints/charts release-preflight.yaml, which release-tag.yaml's package-and-push job `needs:`, at the tag's
+# commit, with read-only contents and no secrets, and the version as $1. A non-zero exit means nothing is stamped,
+# pushed, indexed or released.
+#
+# What it refuses:
+#   - a version that is not plain X.Y.Z;
+#   - a tag that is not the one version this chart mirrors from upstream: the chart's version, its dependency on
+#     upstream seaweedfs, the krateo.io/upstream-version annotation, the CompositionDefinition and the example's served
+#     version (composition.krateo.io/v<X-Y-Z>). The chart carries a LITERAL version, not a CHART_VERSION placeholder the
+#     tag would stamp, so a different tag would publish an archive whose version disagrees with its tag.
+#
+# What it does not require: a pre-release. This repository publishes no pre-release channel (no prerelease.yaml): its
+# chart is upstream's chart at a pinned version and digest with values set, and lint renders and checks it on every
+# pull request. The clusters that consume it are verified through krateo-openstack-blueprint (#309 H3c).
+#
+# Bash only, no PyYAML: the reusable job installs nothing. hack/validate-version-mirror.py checks the same set in lint.
+#
+# Usage: hack/release-preflight X.Y.Z
+set -euo pipefail
+
+version="${1:-}"
+if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "::error::'${version}' is not a plain X.Y.Z release version (PUBLISHING.md rule 13)"
+  exit 1
+fi
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+bad=0
+field() { sed -n "s/^$2:[[:space:]]*\"\{0,1\}\([^\"]*\)\"\{0,1\}[[:space:]]*$/\1/p" "$1" | head -1; }
+expect() {
+  local what="$1" got="$2"
+  if [ -z "$got" ]; then
+    echo "::error::${what} is missing"; bad=1
+  elif [ "$got" != "$version" ]; then
+    echo "::error::${what} is ${got}, not the tag ${version}"; bad=1
+  fi
+}
+
+charts=("$root"/blueprints/*/chart/Chart.yaml)
+[ -f "${charts[0]}" ] || { echo "::error::no chart under blueprints/*/chart; nothing to check the tag against"; exit 1; }
+for cy in "${charts[@]}"; do
+  rel="${cy#$root/}"
+  name="$(field "$cy" name)"
+  expect "${rel} version" "$(field "$cy" version)"
+  dep="$(awk -v n="$name" '/^dependencies:/{d=1} d && $0 ~ "name: "n"$"{f=1} f && /version:/{gsub(/[" ]/,"",$2); print $2; exit}' "$cy")"
+  expect "${rel}'s dependency on upstream ${name}" "$dep"
+  up="$(sed -n 's/^[[:space:]]*krateo\.io\/upstream-version:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}[[:space:]]*$/\1/p' "$cy" | head -1)"
+  expect "${rel} annotation krateo.io/upstream-version" "$up"
+  cd="$(dirname "$(dirname "$cy")")/compositiondefinition.yaml"
+  cdv="$(sed -n 's/^[[:space:]]*version:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}[[:space:]]*$/\1/p' "$cd" | head -1)"
+  expect "${cd#$root/} version" "$cdv"
+done
+
+served="composition.krateo.io/v${version//./-}"
+found=0
+for f in "$root"/examples/basic/*.yaml; do
+  while IFS= read -r v; do
+    found=1
+    if [ "$v" != "$served" ]; then
+      echo "::error::${f#$root/} names ${v}, but this release serves ${served}"; bad=1
+    fi
+  done < <(sed -n 's/^apiVersion:[[:space:]]*\(composition\.krateo\.io\/.*\)$/\1/p' "$f")
+done
+if [ "$found" -eq 0 ]; then
+  echo "::error::no example names a composition.krateo.io version; examples/basic must show what this release serves"
+  bad=1
+fi
+
+if [ "$bad" -ne 0 ]; then
+  exit 1
+fi
+echo "release ${version}: the chart, its upstream dependency, the annotation, the CompositionDefinition and the example all name it"

@@ -1,0 +1,13 @@
+{{- /*
+Refusals checked before anything renders. `fail`, not a warning: composition-dynamic-controller puts a render error on
+the Composition's status, where the operator is already looking.
+
+S3 auth on without an identity Secret. Upstream would then generate random credentials into a Secret of its own
+(seaweedfs-s3-secret, helm.sh/resource-policy keep), which no consumer's credential source knows. The identities are an
+input instead: seaweedfs.s3.existingConfigSecret names a Secret, with the key seaweedfs_s3_config, that the consumer
+provides. hack/validate-render.py renders both cases.
+*/ -}}
+{{- $s3 := .Values.seaweedfs.s3 | default dict }}
+{{- if and $s3.enabled $s3.enableAuth (not $s3.existingConfigSecret) }}
+{{- fail (printf "\n\nseaweedfs.s3.enableAuth is true but seaweedfs.s3.existingConfigSecret is empty.\n\nThe S3 identities are an input: set seaweedfs.s3.existingConfigSecret to the name of a Secret in namespace %s with the key seaweedfs_s3_config, holding SeaweedFS's S3 identity JSON (for example an External Secrets projection of your generated credentials). docs/usage.md shows its shape.\n" .Release.Namespace) }}
+{{- end }}

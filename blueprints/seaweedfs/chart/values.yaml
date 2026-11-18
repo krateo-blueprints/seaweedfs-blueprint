@@ -1,0 +1,109 @@
+# SeaweedFS as a small in-cluster S3 staging store (krateo-openstack-blueprint #309 H3c: mariadb-operator writes its
+# physical backups and binlog archive here, and a blueprint Job encrypts them with age and ships them offsite).
+#
+# Everything under `seaweedfs:` is passed to the upstream seaweedfs chart 4.54.0, whose values.yaml documents every
+# key. What is set here, and why, is in docs/configuration.md. Nothing here is provider-specific: every PVC takes the
+# cluster's default StorageClass unless one is set, and nothing is exposed outside the cluster.
+
+# Helm global values. global.seaweedfs reaches the upstream chart.
+global:
+  seaweedfs:
+    # Upstream's default creates a ClusterRole that may create, patch and delete every pod in the cluster (its "hack for
+    # delete pod master after migration"). A staging store needs no cluster-wide rights.
+    createClusterRole: false
+
+seaweedfs:
+  # The SeaweedFS image, named in full so preflight-refs resolves it and hack/validate-version-mirror.py keeps its tag
+  # equal to appVersion. Upstream's default is the same image without the registry.
+  image:
+    registry: docker.io
+    repository: chrislusf/seaweedfs
+    tag: "4.54"
+
+  master:
+    replicas: 1
+    data:
+      type: persistentVolumeClaim
+      size: 1Gi
+      # Empty: the cluster's default StorageClass.
+      storageClass: ""
+    logs:
+      type: emptyDir
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
+  volume:
+    replicas: 1
+    dataDirs:
+      - name: data1
+        type: persistentVolumeClaim
+        # The staging window: one full physical backup plus the binlogs not yet shipped. Size it to the database.
+        size: 50Gi
+        storageClass: ""
+        maxVolumes: 0
+    # Upstream's resize hook is a Job with its own image and RBAC that patches the StatefulSet when a PVC size changes.
+    # Off: grow a PVC by editing it (with a StorageClass that allows expansion), docs/usage.md.
+    resizeHook:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+  filer:
+    replicas: 1
+    data:
+      type: persistentVolumeClaim
+      size: 5Gi
+      storageClass: ""
+    logs:
+      type: emptyDir
+    # The S3 API is served by the standalone gateway below, not embedded in the filer.
+    s3:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+  s3:
+    enabled: true
+    replicas: 1
+    # S3 authentication on. The identities come from existingConfigSecret, a Secret the consumer provides (for
+    # example an External Secrets projection of generated roots) with the key seaweedfs_s3_config holding SeaweedFS's
+    # S3 identity JSON. Required while enableAuth is true: the chart refuses to render
+    # without it (templates/preconditions.yaml).
+    enableAuth: true
+    existingConfigSecret: ""
+    # The staging bucket, created by upstream's post-install/post-upgrade Job.
+    createBuckets:
+      - name: mariadb-staging
+        anonymousRead: false
+    createBucketsHook:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
+    logs:
+      type: emptyDir
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+    # In-cluster only. Expose it deliberately if a consumer outside the cluster needs it.
+    ingress:
+      enabled: false
+    service:
+      type: ClusterIP

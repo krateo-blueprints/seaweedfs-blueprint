@@ -1,0 +1,12 @@
+# Registers the seaweedfs chart with Krateo core-provider, which generates a Composition CRD (kind Seaweedfs) from the
+# chart's values.schema.json and serves it at composition.krateo.io/v4-54-0. release-tag.yaml ships this file inside the
+# chart archive (krateo-blueprints/charts PUBLISHING.md rule 3) and refuses a URL or version that does not match the chart.
+apiVersion: core.krateo.io/v1alpha1
+kind: CompositionDefinition
+metadata:
+  name: seaweedfs
+  namespace: seaweedfs-system
+spec:
+  chart:
+    url: oci://ghcr.io/krateo-blueprints/charts/seaweedfs
+    version: "4.54.0"
