@@ -1,0 +1,8 @@
+# The org publisher and its release preflight are pinned by full commit SHA (krateo-blueprints/charts PUBLISHING.md
+# rule 9); Dependabot proposes the upgrades.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

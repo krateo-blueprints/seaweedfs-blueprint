@@ -1,0 +1,13 @@
+# SeaweedFS as the S3 staging store, in seaweedfs-system. The Secret named by s3.existingConfigSecret must exist in the
+# same namespace with the key seaweedfs_s3_config (docs/usage.md); without the name the Composition refuses to render,
+# with the reason on its status.
+---
+apiVersion: composition.krateo.io/v4-54-0
+kind: Seaweedfs
+metadata:
+  name: seaweedfs
+  namespace: seaweedfs-system
+spec:
+  seaweedfs:
+    s3:
+      existingConfigSecret: seaweedfs-s3-identities

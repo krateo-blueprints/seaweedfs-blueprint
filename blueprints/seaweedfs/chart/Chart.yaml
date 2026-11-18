@@ -1,0 +1,33 @@
+apiVersion: v2
+name: seaweedfs
+type: application
+description: SeaweedFS as a small in-cluster S3 staging store (one master, one volume server, one filer and the S3 gateway, S3 auth on), wrapping the upstream seaweedfs chart.
+# Literal, EQUAL to the upstream chart version: one upstream, so this chart mirrors it (krateo-blueprints/charts
+# PUBLISHING.md, charts that version independently). An upstream bump is then a repo-only change to this file, the
+# dependency below and the CompositionDefinition; hack/validate-version-mirror.py keeps them at one number.
+version: "4.54.0"
+appVersion: "4.54"
+icon: https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg
+home: https://github.com/krateo-blueprints/seaweedfs-blueprint
+sources:
+  - https://github.com/krateo-blueprints/seaweedfs-blueprint
+  - https://github.com/seaweedfs/seaweedfs
+keywords:
+  - seaweedfs
+  - s3
+  - object-storage
+  - backup
+maintainers:
+  - name: krateo
+dependencies:
+  - name: seaweedfs
+    version: "4.54.0"
+    repository: https://seaweedfs.github.io/seaweedfs/helm
+annotations:
+  krateo.io/category: storage
+  krateo.io/upstream-chart: https://seaweedfs.github.io/seaweedfs/helm/seaweedfs
+  krateo.io/upstream-version: "4.54.0"
+  # The SHA-256 of the chart archive upstream serves for that version (its index.yaml digest). Chart.lock pins the
+  # dependency set; this pins the bytes: hack/validate-chart-lock.py --live, run in lint and before every release,
+  # refuses a repository that now serves something else under the same version.
+  krateo.io/upstream-digest: "sha256:83d6e56164284c26be7fc5a8cb635bd7b829c1ea78db360e14b606823290ee6c"

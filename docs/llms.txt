@@ -1,0 +1,22 @@
+# seaweedfs-blueprint
+
+Krateo blueprint wrapping the upstream seaweedfs Helm chart 4.54.0 as a small in-cluster S3 staging store (one master,
+one volume server, one filer, the S3 gateway; S3 auth on with identities from a Secret the consumer provides). Published
+to oci://ghcr.io/krateo-blueprints/charts/seaweedfs on the blueprints channel, with its CompositionDefinition inside.
+
+## Shape
+- blueprints/seaweedfs/chart: Chart.yaml (literal 4.54.0, dependency on upstream), Chart.lock, values.yaml,
+  values.schema.json, templates/preconditions.yaml (the S3 identity refusal).
+- blueprints/seaweedfs/compositiondefinition.yaml: namespace seaweedfs-system.
+
+## Pins
+- Chart.lock committed; krateo.io/upstream-digest is the upstream archive's SHA-256, checked live.
+
+## Defaults
+- PVCs on the cluster default StorageClass; logs on emptyDir; no ClusterRole; no resize hook; no ingress.
+- The staging bucket mariadb-staging; resource requests and memory limits on every container.
+- No HA: staging holds only objects not yet shipped offsite.
+
+## Docs
+- docs/index.md, docs/overview.md, docs/usage.md, docs/configuration.md, docs/api.md, docs/examples.md,
+  docs/release.md, docs/log.md

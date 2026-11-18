@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "seaweedfs",
+  "description": "SeaweedFS (upstream chart 4.54.0) as a small in-cluster S3 staging store: one master, one volume server, one filer and the S3 gateway, S3 auth on with identities from a Secret you provide, PVCs on the cluster's default StorageClass unless set.",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "type": "object",
+      "title": "Global values",
+      "description": "Helm global values; global.seaweedfs reaches the upstream chart.",
+      "x-kubernetes-preserve-unknown-fields": true
+    },
+    "seaweedfs": {
+      "type": "object",
+      "title": "Upstream chart values",
+      "description": "Passthrough to the upstream seaweedfs chart (its values.yaml documents every key). Helm validates this schema against coalesced values that carry the subchart's full defaults, so this object is open: the keys below are typed, every other key passes through.",
+      "x-kubernetes-preserve-unknown-fields": true,
+      "properties": {
+        "master": {
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true,
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Master servers."
+            }
+          }
+        },
+        "volume": {
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true,
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Volume servers."
+            }
+          }
+        },
+        "filer": {
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true,
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Filers."
+            }
+          }
+        },
+        "s3": {
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "The standalone S3 gateway."
+            },
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "S3 gateways."
+            },
+            "enableAuth": {
+              "type": "boolean",
+              "description": "S3 authentication. With it on, existingConfigSecret is required."
+            },
+            "existingConfigSecret": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Name of a Secret in the release's namespace with the key seaweedfs_s3_config: SeaweedFS's S3 identity JSON."
+            },
+            "createBuckets": {
+              "type": "array",
+              "description": "Buckets created by upstream's post-install/post-upgrade Job.",
+              "items": {
+                "type": "object",
+                "x-kubernetes-preserve-unknown-fields": true,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
