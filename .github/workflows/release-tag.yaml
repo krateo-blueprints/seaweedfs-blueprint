@@ -33,7 +33,7 @@ jobs:
   # exactly the version the chart, its appVersion, the upstream dependency and the CompositionDefinition carry.
   # Pinned like the publisher, to the same release (rule 9).
   preflight:
-    uses: krateo-blueprints/charts/.github/workflows/release-preflight.yaml@70095ab05f1c5dc6c8dd39d0b1fdbbc7382a841c # 1.4.3
+    uses: krateo-blueprints/charts/.github/workflows/release-preflight.yaml@0794359c611fc736f101ecc64d3a86e0ddcad718 # 1.8.0
     with:
       version: ${{ github.ref_name }}
 
